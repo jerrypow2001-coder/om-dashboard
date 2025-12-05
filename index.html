@@ -367,14 +367,34 @@
             );
         };
 
-        const ProgressWidget = ({ selectedDate, dailyLogs, setDailyLogs }) => {
+        const ProgressWidget = ({ selectedDate, dailyLogs, setDailyLogs, onExtract, isExtracting }) => {
             const dateKey = formatDateKey(selectedDate);
             const displayDate = formatDateDisplay(selectedDate);
             const content = dailyLogs[dateKey] || "";
             const handleChange = (e) => { setDailyLogs({ ...dailyLogs, [dateKey]: e.target.value }); };
+            
             return (
                 <div className="bg-white/90 dark:bg-dark-card/90 backdrop-blur rounded-xl shadow-sm border border-slate-200 dark:border-dark-border p-5 h-full flex flex-col hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between gap-2 mb-3 border-b border-slate-100 dark:border-dark-border pb-3"><div className="flex items-center gap-2"><History className="text-amber-500" size={18} /><h3 className="text-sm font-bold text-slate-700 dark:text-dark-text">Daily Log</h3></div><span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-dark-input px-2 py-1 rounded-md border border-indigo-100 dark:border-dark-border">{displayDate}</span></div>
+                    <div className="flex items-center justify-between gap-2 mb-3 border-b border-slate-100 dark:border-dark-border pb-3">
+                        <div className="flex items-center gap-2">
+                            <History className="text-amber-500" size={18} />
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-dark-text">Daily Log</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {onExtract && (
+                                <button 
+                                    onClick={onExtract} 
+                                    disabled={isExtracting || content.trim().length < 5}
+                                    className="text-[10px] bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-300 px-2 py-0.5 rounded border border-fuchsia-100 dark:border-fuchsia-800 flex items-center gap-1 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Extract items to Todo List"
+                                >
+                                    {isExtracting ? <RefreshCw size={10} className="animate-spin" /> : <Wand2 size={10} />} 
+                                    <span>Extract</span>
+                                </button>
+                            )}
+                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-dark-input px-2 py-1 rounded-md border border-indigo-100 dark:border-dark-border">{displayDate}</span>
+                        </div>
+                    </div>
                     <textarea className="flex-grow w-full text-sm text-slate-700 dark:text-dark-text bg-slate-50/50 dark:bg-dark-input border border-slate-200 dark:border-dark-border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 focus:border-indigo-300 resize-none transition-all placeholder:text-slate-400 dark:placeholder:text-dark-muted" placeholder={`Log notes for ${displayDate}...`} value={content} onChange={handleChange} style={{minHeight: '160px'}}/>
                 </div>
             );
@@ -791,20 +811,13 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <CalendarWidget selectedDate={selectedDate} onDateSelect={setSelectedDate} dailyLogs={dailyLogs} allTodos={allTodos}/>
                     <TodoWidget selectedDate={selectedDate} allTodos={allTodos} setAllTodos={setAllTodos} />
-                    <div className="relative">
-                        <ProgressWidget selectedDate={selectedDate} dailyLogs={dailyLogs} setDailyLogs={setDailyLogs}/>
-                        {/* Magic Extract Button Overlay */}
-                        <div className="absolute top-5 right-16">
-                            <button 
-                                onClick={handleExtractTodos} 
-                                disabled={isAiProcessing || !dailyLogs[formatDateKey(selectedDate)]}
-                                className="text-xs bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300 px-2 py-1 rounded-full flex items-center gap-1 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900/50 transition-colors disabled:opacity-50"
-                                title="AI: Extract actionable tasks from log"
-                            >
-                                {isAiProcessing ? <RefreshCw size={10} className="animate-spin" /> : <Wand2 size={10} />} Extract
-                            </button>
-                        </div>
-                    </div>
+                    <ProgressWidget 
+                        selectedDate={selectedDate} 
+                        dailyLogs={dailyLogs} 
+                        setDailyLogs={setDailyLogs}
+                        onExtract={handleExtractTodos}
+                        isExtracting={isAiProcessing}
+                    />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                      <PortfolioSection 
