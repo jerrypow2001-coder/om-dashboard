@@ -11,8 +11,9 @@
     <!-- Theme Color for App Bar -->
     <meta name="theme-color" content="#4f46e5">
     
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧬</text></svg>">
+    <!-- App Icons (Robust SVG with Background for Laptop/Desktop Install) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 fill=%22%234f46e5%22 rx=%22128%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 font-size=%22350%22>🧬</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 fill=%22%234f46e5%22 rx=%22128%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 font-size=%22350%22>🧬</text></svg>">
 
     <!-- React & Tailwind Scripts -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -72,7 +73,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body class="antialiased transition-colors duration-200">
     <div id="root"></div>
@@ -272,6 +272,22 @@
             );
         };
 
+        const HeaderBanner = () => (
+            <div className="relative bg-gradient-to-r from-indigo-900 to-blue-800 text-white rounded-2xl overflow-hidden mb-8 shadow-lg transition-colors">
+                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80" alt="Healthcare Background" className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay" />
+                <div className="relative p-8 md:p-10 flex flex-col justify-center min-h-[140px]">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                            <LayoutDashboard size={24} className="text-white" />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-widest text-indigo-200">Workspace</span>
+                    </div>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1 text-white">Oncology Monitor</h1>
+                    <p className="text-indigo-100 text-sm md:text-base font-light max-w-xl">Track deliverables, manage databases, and monitor progress efficiently.</p>
+                </div>
+            </div>
+        );
+
         // --- App Widgets ---
         const CalendarWidget = ({ selectedDate, onDateSelect, dailyLogs, allTodos }) => {
             const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -358,22 +374,6 @@
                 </div>
             );
         };
-
-        const HeaderBanner = () => (
-            <div className="relative bg-gradient-to-r from-indigo-900 to-blue-800 text-white rounded-2xl overflow-hidden mb-8 shadow-lg transition-colors">
-                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80" alt="Healthcare Background" className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay" />
-                <div className="relative p-8 md:p-10 flex flex-col justify-center min-h-[140px]">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                            <LayoutDashboard size={24} className="text-white" />
-                        </div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-indigo-200">Workspace</span>
-                    </div>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1 text-white">Oncology Monitor</h1>
-                    <p className="text-indigo-100 text-sm md:text-base font-light max-w-xl">Track deliverables, manage databases, and monitor progress efficiently.</p>
-                </div>
-            </div>
-        );
 
         const ConfigurationPanel = ({ availableYears, availableJobLabels, resetData, addYear, removeYear, addJobLabel, removeJobLabel }) => (
               <div className="bg-white/90 dark:bg-dark-card/90 backdrop-blur border border-slate-200 dark:border-dark-border rounded-xl p-6 mb-8 shadow-sm">
@@ -691,6 +691,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
