@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +19,6 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -62,6 +61,18 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body class="antialiased transition-colors duration-200">
     <div id="root"></div>
@@ -146,6 +157,8 @@
         const Square = (props) => <IconBase {...props}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></IconBase>;
         const Sun = (props) => <IconBase {...props}><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></IconBase>;
         const Moon = (props) => <IconBase {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></IconBase>;
+        const Download = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></IconBase>;
+        const Upload = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></IconBase>;
 
         // --- Constants ---
         const INITIAL_YEARS = [2025, 2026];
@@ -160,9 +173,8 @@
           { id: 'rf', label: 'Rapid Fire NSCLC', value: getExpectedVersion(1), lag: 1 },
         ];
         
-        // Cleared for template
         const INITIAL_PORTFOLIOS = [];
-        const INITIAL_TODOS_FLAT = []; // Empty
+        const INITIAL_TODOS_FLAT = [];
         
         const SECTIONS_CONFIG = {
             monthly: { title: 'Monthly Deliverables', icon: <CalendarIcon size={20} />, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-white/90 dark:bg-dark-card/90 backdrop-blur', border: 'border-l-4 border-l-indigo-500' },
@@ -170,24 +182,97 @@
         };
         const PERIOD_OPTIONS = [...Array.from({length: 12}, (_, i) => `M${String(i+1).padStart(2, '0')}`), 'Q1', 'Q2', 'Q3', 'Q4'];
 
-        // --- Components ---
+        // --- Data Persistence Modal Component ---
+        const DataPersistenceModal = ({ isOpen, onClose, currentData, onImport }) => {
+            const fileInputRef = useRef(null);
+            const [importStatus, setImportStatus] = useState('idle');
+            const [statusMsg, setStatusMsg] = useState('');
 
-        const HeaderBanner = () => (
-            <div className="relative bg-gradient-to-r from-indigo-900 to-blue-800 text-white rounded-2xl overflow-hidden mb-8 shadow-lg transition-colors">
-                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80" alt="Healthcare Background" className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay" />
-                <div className="relative p-8 md:p-10 flex flex-col justify-center min-h-[140px]">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                            <LayoutDashboard size={24} className="text-white" />
+            if (!isOpen) return null;
+
+            const handleExport = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentData, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                const date = new Date().toISOString().split('T')[0];
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", `om_dashboard_backup_${date}.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            };
+
+            const handleFileChange = (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const json = JSON.parse(event.target.result);
+                        if (!json.dbVersions || !Array.isArray(json.dbVersions) || !json.portfolios) {
+                            throw new Error("Invalid file structure");
+                        }
+                        const importedData = {
+                            dbVersions: json.dbVersions,
+                            portfolios: json.portfolios,
+                            allTodos: json.allTodos || {},
+                            dailyLogs: json.dailyLogs || {},
+                            availableYears: json.availableYears || [2025, 2026],
+                            availableJobLabels: json.availableJobLabels || ['USTOM', 'ETOM']
+                        };
+                        onImport(importedData);
+                        setImportStatus('success');
+                        setStatusMsg('Data imported successfully!');
+                        setTimeout(() => {
+                            onClose();
+                            setImportStatus('idle');
+                        }, 1500);
+                    } catch (err) {
+                        console.error(err);
+                        setImportStatus('error');
+                        setStatusMsg('Failed to parse JSON.');
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-dark-border">
+                        <div className="p-4 border-b border-slate-100 dark:border-dark-border flex justify-between items-center bg-slate-50 dark:bg-dark-card">
+                            <h3 className="font-bold text-slate-800 dark:text-dark-text flex items-center gap-2">
+                                <Database size={18} className="text-indigo-600 dark:text-indigo-400"/> 
+                                Data Management
+                            </h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"><X size={20}/></button>
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-indigo-200">Workspace</span>
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-dark-text uppercase tracking-wide">Export Data</h4>
+                                <p className="text-xs text-slate-500 dark:text-dark-muted mb-3">Download a JSON backup.</p>
+                                <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 font-semibold transition-all">
+                                    <Download size={18} /> Download Backup
+                                </button>
+                            </div>
+                            <hr className="border-slate-100 dark:border-dark-border" />
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-dark-text uppercase tracking-wide">Import Data</h4>
+                                <p className="text-xs text-slate-500 dark:text-dark-muted mb-3">Restore data from a backup file.</p>
+                                <div className="relative group">
+                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                    <div className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed font-semibold transition-all ${ importStatus === 'error' ? 'bg-rose-50 border-rose-200 text-rose-600' : importStatus === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600 dark:bg-dark-input dark:border-dark-border dark:text-dark-text'}`}>
+                                        {importStatus === 'success' ? <Check size={18}/> : importStatus === 'error' ? <AlertCircle size={18} /> : <Upload size={18} />} 
+                                        {importStatus === 'idle' ? 'Select Backup File' : statusMsg}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1 text-white">Oncology Monitor</h1>
-                    <p className="text-indigo-100 text-sm md:text-base font-light max-w-xl">Track deliverables, manage databases, and monitor progress efficiently.</p>
                 </div>
-            </div>
-        );
+            );
+        };
 
+        // --- App Widgets ---
         const CalendarWidget = ({ selectedDate, onDateSelect, dailyLogs, allTodos }) => {
             const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
             const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -274,6 +359,22 @@
             );
         };
 
+        const HeaderBanner = () => (
+            <div className="relative bg-gradient-to-r from-indigo-900 to-blue-800 text-white rounded-2xl overflow-hidden mb-8 shadow-lg transition-colors">
+                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80" alt="Healthcare Background" className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay" />
+                <div className="relative p-8 md:p-10 flex flex-col justify-center min-h-[140px]">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                            <LayoutDashboard size={24} className="text-white" />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-widest text-indigo-200">Workspace</span>
+                    </div>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1 text-white">Oncology Monitor</h1>
+                    <p className="text-indigo-100 text-sm md:text-base font-light max-w-xl">Track deliverables, manage databases, and monitor progress efficiently.</p>
+                </div>
+            </div>
+        );
+
         const ConfigurationPanel = ({ availableYears, availableJobLabels, resetData, addYear, removeYear, addJobLabel, removeJobLabel }) => (
               <div className="bg-white/90 dark:bg-dark-card/90 backdrop-blur border border-slate-200 dark:border-dark-border rounded-xl p-6 mb-8 shadow-sm">
                    <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><Settings className="text-indigo-600 dark:text-indigo-400" size={20} /><h3 className="text-base font-bold text-slate-800 dark:text-dark-text">Dashboard Configuration</h3></div><button onClick={resetData} className="text-xs flex items-center gap-1 text-slate-400 hover:text-red-500 px-2 py-1 rounded transition-colors" title="Reset all data to defaults"><RefreshCw size={12} /> Reset to Default</button></div>
@@ -336,15 +437,31 @@
           const [darkMode, setDarkMode] = useState(false);
           const [toast, setToast] = useState({ show: false, message: '' });
           
-          const [isModalOpen, setIsModalOpen] = useState(false);
+          const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+          const [isDataModalOpen, setIsDataModalOpen] = useState(false);
           const [editingPortfolio, setEditingPortfolio] = useState(null);
           const [isDirty, setIsDirty] = useState(false);
           const initialLoadDone = useRef(false);
 
           useEffect(() => {
               const savedTheme = localStorage.getItem('omDashboardTheme');
-              if (savedTheme === 'dark') setDarkMode(true);
+              if (savedTheme === 'dark') {
+                  setDarkMode(true);
+                  document.documentElement.classList.add('dark');
+              } else {
+                  document.documentElement.classList.remove('dark');
+              }
           }, []);
+          
+          useEffect(() => {
+            if (darkMode) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('omDashboardTheme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('omDashboardTheme', 'light');
+            }
+          }, [darkMode]);
 
           const verifiedDbs = useMemo(() => {
              return dbVersions.map(db => {
@@ -393,12 +510,22 @@
           useEffect(() => { if (initialLoadDone.current) { setIsDirty(true); } }, [dbVersions, portfolios, allTodos, dailyLogs, availableYears, availableJobLabels]);
           useEffect(() => { const handleBeforeUnload = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', handleBeforeUnload); return () => window.removeEventListener('beforeunload', handleBeforeUnload); }, [isDirty]);
 
-          const toggleDarkMode = () => {
-              setDarkMode(!darkMode);
-              localStorage.setItem('omDashboardTheme', !darkMode ? 'dark' : 'light');
-          };
           const showToast = (msg) => { setToast({ show: true, message: msg }); setTimeout(() => setToast({ show: false, message: '' }), 3000); };
           const saveToLocalStorage = () => { const dataToSave = { dbVersions, portfolios, allTodos, dailyLogs, availableYears, availableJobLabels }; localStorage.setItem('omDashboardData', JSON.stringify(dataToSave)); setIsDirty(false); showToast('Changes saved to browser!'); };
+          
+          const handleImportData = (data) => {
+            if(confirm("Importing data will overwrite your current workspace. Continue?")) {
+                setDbVersions(data.dbVersions);
+                setPortfolios(data.portfolios);
+                setAllTodos(data.allTodos);
+                setDailyLogs(data.dailyLogs);
+                setAvailableYears(data.availableYears);
+                setAvailableJobLabels(data.availableJobLabels);
+                setIsDirty(true);
+                showToast('Workspace imported successfully');
+            }
+          };
+
           const updateDb = (id, field, value) => { setDbVersions(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d)); };
           const addDb = () => { const id = `db_${Date.now()}`; setDbVersions([...dbVersions, { id, label: 'New Database', value: 'M01 2025', lag: 0 }]); };
           const deleteDb = (id) => { if (confirm("Delete this database?")) { setDbVersions(prev => prev.filter(d => d.id !== id)); setPortfolios(prev => prev.map(p => ({ ...p, dbRef: p.dbRef.filter(ref => ref !== id) }))); } };
@@ -412,8 +539,8 @@
           const removeYear = (y) => { if (confirm(`Remove year ${y}?`)) { setAvailableYears(availableYears.filter(yr => yr !== y)); } };
           const addJobLabel = () => { const label = prompt("Enter new Job Label:"); if (label && !availableJobLabels.includes(label)) { setAvailableJobLabels([...availableJobLabels, label]); } };
           const removeJobLabel = (label) => { if (confirm(`Remove label "${label}"?`)) { setAvailableJobLabels(availableJobLabels.filter(l => l !== label)); } };
-          const openEditModal = (portfolio) => { setEditingPortfolio(portfolio); setIsModalOpen(true); };
-          const handleSaveModal = (updatedPortfolio) => { setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p)); setIsModalOpen(false); setEditingPortfolio(null); showToast('Portfolio details updated'); };
+          const openEditModal = (portfolio) => { setEditingPortfolio(portfolio); setIsEditModalOpen(true); };
+          const handleSaveModal = (updatedPortfolio) => { setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p)); setIsEditModalOpen(false); setEditingPortfolio(null); showToast('Portfolio details updated'); };
 
           const DbCard = ({ dbId, sectionType, showEditControls }) => {
             const db = verifiedDbs.find(d => d.id === dbId); if (!db) return null;
@@ -523,10 +650,25 @@
           return (
             <div className={`min-h-screen pb-20 transition-colors duration-500 ${darkMode ? 'dark bg-onco-dark text-gray-100' : 'bg-onco-light text-slate-800'}`}>
               {toast.show && (<div className="fixed top-6 right-6 z-50 bg-slate-800 dark:bg-slate-700 text-white px-6 py-3 rounded-xl shadow-2xl animate-fade-in flex items-center font-medium"><Check className="w-5 h-5 mr-3 text-emerald-400" />{toast.message}</div>)}
-              <EditPortfolioModal portfolio={editingPortfolio} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveModal} allDbs={verifiedDbs} jobLabels={availableJobLabels} />
+              <EditPortfolioModal portfolio={editingPortfolio} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveModal} allDbs={verifiedDbs} jobLabels={availableJobLabels} />
+              
+              <DataPersistenceModal 
+                    isOpen={isDataModalOpen} 
+                    onClose={() => setIsDataModalOpen(false)} 
+                    currentData={{ dbVersions, portfolios, allTodos, dailyLogs, availableYears, availableJobLabels }}
+                    onImport={handleImportData}
+              />
               
               <nav className="bg-white/80 dark:bg-dark-card/80 backdrop-blur-md border-b border-slate-200 dark:border-dark-border sticky top-0 z-20 transition-colors">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div className="flex justify-between h-16"><div className="flex items-center gap-2"><span className="font-bold text-lg text-slate-700 dark:text-dark-text tracking-tight">OM Dashboard</span></div><div className="flex items-center gap-3"><button onClick={toggleDarkMode} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">{darkMode ? <Sun size={20}/> : <Moon size={20}/>}</button><div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div><button onClick={saveToLocalStorage} className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold shadow-sm transition-all ${isDirty ? 'bg-indigo-600 text-white hover:bg-indigo-700 ring-2 ring-indigo-300 ring-offset-2' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`} title="Save changes"><Save size={16} /> {isDirty ? 'Save Changes' : 'Saved'}</button><button onClick={() => setEditMode(!editMode)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${editMode ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 ring-offset-2' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}><Edit2 size={14} className={editMode ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500 dark:text-slate-400"} />{editMode ? 'Done Editing' : 'Edit Mode'}</button></div></div></div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div className="flex justify-between h-16"><div className="flex items-center gap-2"><span className="font-bold text-lg text-slate-700 dark:text-dark-text tracking-tight">OM Dashboard</span></div><div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setIsDataModalOpen(true)}
+                                className="hidden md:flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                title="Import / Export Data"
+                            >
+                                <Upload size={16} /> <span className="text-xs">Data Tools</span>
+                            </button>
+                            <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">{darkMode ? <Sun size={20}/> : <Moon size={20}/>}</button><div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div><button onClick={saveToLocalStorage} className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold shadow-sm transition-all ${isDirty ? 'bg-indigo-600 text-white hover:bg-indigo-700 ring-2 ring-indigo-300 ring-offset-2' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`} title="Save changes"><Save size={16} /> {isDirty ? 'Save Changes' : 'Saved'}</button><button onClick={() => setEditMode(!editMode)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${editMode ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 ring-offset-2' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}><Edit2 size={14} className={editMode ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500 dark:text-slate-400"} />{editMode ? 'Done Editing' : 'Edit Mode'}</button></div></div></div>
               </nav>
 
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -549,5 +691,6 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
